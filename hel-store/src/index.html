@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Helwan Store</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';">
+  <link rel="icon" type="image/png" href="assets/icons/app_icon.png"> 
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      background: #f0f2f5;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      padding: 1em;
+      background: #2c3e50;
+      color: white;
+      margin: 0;
+      flex-shrink: 0;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    #controls {
+      padding: 1em;
+      background: #e9ecef;
+      border-bottom: 1px solid #dee2e6;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 15px;
+      flex-shrink: 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    #search-container, 
+    #category-dropdown-container, 
+    #repo-filter-container {
+      flex-basis: 300px;
+    }
+    #searchInput, 
+    #categorySelect, 
+    #repoFilterSelect {
+      padding: 10px 15px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      width: 100%;
+      font-size: 1em;
+      box-sizing: border-box;
+    }
+    #searchInput:focus, 
+    #categorySelect:focus, 
+    #repoFilterSelect:focus {
+      border-color: #007bff;
+      outline: none;
+      box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+    }
+    #categories { 
+      display: none; /* Hide if not needed */
+    }
+    
+    /* Existing CSS for table, buttons, statusMessage, loadingDiv remains */
+    .category-button {
+      padding: 8px 15px;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+      border-radius: 5px;
+      transition: background-color 0.2s ease, transform 0.1s ease;
+      font-size: 0.9em;
+    }
+    .category-button:hover:not(:disabled) {
+      background-color: #0056b3;
+      transform: translateY(-1px);
+    }
+    .category-button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+    #packages {
+      padding: 1.5em;
+      overflow-y: auto;
+      flex-grow: 1;
+      background: white;
+      margin: 1em;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      box-shadow: 0 0 0 1px #ddd;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 12px 15px;
+      border-bottom: 1px solid #eee;
+      text-align: left;
+    }
+    th {
+      background-color: #34495e;
+      color: white;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.9em;
+    }
+    th:first-child { border-top-left-radius: 8px; }
+    th:last-child { border-top-right-radius: 8px; }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+    tr:nth-child(even) {
+      background-color: #f8f9fa;
+    }
+    tr:hover {
+      background-color: #e2f0ff;
+    }
+    .installed {
+      color: #28a745;
+      font-weight: bold;
+    }
+    td button {
+      margin: 0 5px;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s ease, transform 0.1s ease;
+      font-size: 0.85em;
+    }
+    td button:first-child {
+      background-color: #28a745;
+      color: white;
+    }
+    td button:first-child:hover:not(:disabled) {
+      background-color: #218838;
+      transform: translateY(-1px);
+    }
+    td button:last-child {
+      background-color: #dc3545;
+      color: white;
+    }
+    td button:last-child:hover:not(:disabled) {
+      background-color: #c82333;
+      transform: translateY(-1px);
+    }
+    td button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    /* Status Message Styles */
+    #statusMessage {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: #333;
+      color: white;
+      padding: 15px 25px;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      z-index: 1000;
+      display: none;
+      font-size: 1em;
+      font-weight: bold;
+      animation: fadeInOut 5s forwards;
+    }
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translateY(20px); }
+      10% { opacity: 1; transform: translateY(0); }
+      90% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(20px); }
+    }
+
+    /* Loading Spinner Styles */
+    #loadingDiv {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      width: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      background-color: rgba(255, 255, 255, 0.8);
+      z-index: 999;
+      border-radius: 8px;
+    }
+    #loadingDiv p {
+      color: #333;
+      font-weight: bold;
+    }
+    .spinner {
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border-left-color: #007bff;
+      animation: spin 1s ease infinite;
+      margin-top: 15px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Pagination Styles */
+    #paginationControls {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 1em;
+        background: #e9ecef;
+        border-top: 1px solid #dee2e6;
+        gap: 15px;
+        flex-shrink: 0;
+        box-shadow: 0 -1px 3px rgba(0,0,0,0.05);
+    }
+    #paginationControls button {
+        padding: 10px 20px;
+        border: none;
+        background-color: #007bff;
+        color: white;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 1em;
+        transition: background-color 0.2s ease;
+    }
+    #paginationControls button:hover:not(:disabled) {
+        background-color: #0056b3;
+    }
+    #paginationControls button:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+    #pageInfo {
+        font-weight: bold;
+        color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>Helwan Store</h1>
+
+  <div id="controls">
+    <div id="search-container">
+      <input type="text" id="searchInput" placeholder="Search package...">
+    </div>
+    <div id="category-dropdown-container">
+      <select id="categorySelect">
+        <option value="all">All Categories</option>
+        <option value="Multimedia">Multimedia</option>
+        <option value="Games">Games</option>
+        <option value="Development">Development</option>
+        <option value="System Tools">System Tools</option>
+        <option value="Networking">Networking</option>
+        <option value="Office">Office</option>
+        <option value="Graphics">Graphics</option>
+        <option value="Education">Education</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div id="repo-filter-container">
+      <select id="repoFilterSelect">
+        <option value="all">All Repositories</option>
+        <option value="Arch">Arch Repositories</option>
+        <option value="Helwan">Helwan Repository</option>
+        <option value="AUR">AUR Repository</option>
+      </select>
+    </div>
+    <div id="categories">
+      </div>
+  </div>
+
+  <div id="packages">
+    </div>
+
+  <div id="paginationControls">
+    <button id="prevPageBtn">Previous Page</button>
+    <span id="pageInfo"></span>
+    <button id="nextPageBtn">Next Page</button>
+  </div>
+
+  <div id="statusMessage"></div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
