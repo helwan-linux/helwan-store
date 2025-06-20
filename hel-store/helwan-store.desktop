@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Helwan Store
+Comment=Simple graphical package manager for Helwan Linux (Arch-based)
+Exec=/usr/bin/electron /opt/hel-store
+Icon=/opt/hel-store/assets/icons/app_icon.png
+Terminal=false
+Type=Application
+Categories=Utility;System;PackageManager;
+StartupWMClass=helwan-store
