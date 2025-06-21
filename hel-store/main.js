@@ -1,7 +1,10 @@
 // main.js
-const { app, BrowserWindow, ipcMain, Notification } = require('electron');
+const { app, BrowserWindow, ipcMain, Notification, Tray, Menu } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
+
+let tray = null; // سيتم استخدام هذا المتغير لتخزين كائن الـ Tray
+let appQuitting = false; // لمتابعة ما إذا كان التطبيق في طور الإغلاق الكامل
 
 /**
  * Creates the main browser window for the application.
@@ -20,18 +23,99 @@ function createWindow() {
             nodeIntegration: false
         },
         // Application icon
-        icon: path.join(__dirname, 'assets', 'icons', 'app_icon.png')
+        icon: path.join(__dirname, 'assets', 'icons', 'app_icon.png'),
+        show: false // إضافة جديدة: لا تظهر النافذة عند الإنشاء مباشرة
     });
 
     // Load the main HTML file
     win.loadFile('src/index.html');
     // Uncomment the line below to open DevTools for debugging purposes
     // win.webContents.openDevTools();
+
+    // إضافة جديدة: معالج حدث عند محاولة إغلاق النافذة
+    win.on('close', (event) => {
+        if (!appQuitting) { // إذا لم يكن التطبيق في طور الإغلاق الكامل
+            event.preventDefault(); // منع الإغلاق الافتراضي
+            win.hide(); // إخفاء النافذة بدلاً من إغلاقها
+        }
+    });
+
+    // إضافة جديدة: إظهار النافذة فقط عندما تكون جاهزة للعرض وتكون مرئية (ليست في وضع البدء المخفي)
+    win.once('ready-to-show', () => {
+        const shouldStartHidden = process.argv.includes('--start-hidden');
+        if (!shouldStartHidden) {
+            win.show();
+        }
+    });
+
+    return win; // إضافة جديدة: أعد كائن النافذة ليتم استخدامه لاحقًا
 }
 
 // Event handler: Called when Electron is ready to create browser windows.
 app.whenReady().then(() => {
-    createWindow();
+    // إضافة جديدة: تحقق من علامة بدء التشغيل المخفي
+    const shouldStartHidden = process.argv.includes('--start-hidden');
+
+    // إنشاء النافذة الرئيسية (ستكون مخفية في البداية بسبب show: false في createWindow)
+    const mainWindow = createWindow(); // قم بتخزين النافذة في متغير
+
+    // إضافة جديدة: إنشاء أيقونة الـ Tray
+    tray = new Tray(path.join(__dirname, 'assets', 'icons', 'app_icon.png')); // استخدم مسار الأيقونة الخاص بك
+
+    // قائمة السياق لأيقونة الـ Tray
+    const contextMenu = Menu.buildFromTemplate([
+        {
+            label: 'فتح Helwan Store',
+            click: () => {
+                mainWindow.show(); // إظهار النافذة
+            }
+        },
+        {
+            label: 'إخفاء Helwan Store', // خيار لإخفاء النافذة إذا كانت ظاهرة
+            click: () => {
+                mainWindow.hide();
+            }
+        },
+        {
+            label: 'التحقق من التحديثات',
+            click: async () => {
+                const result = await ipcMain.handle('check-for-system-updates');
+                if (result.success) {
+                    new Notification({
+                        title: 'تحديثات النظام',
+                        body: result.updatesAvailable ? `${result.updateCount} تحديثات متاحة!` : 'نظامك محدث.',
+                        icon: path.join(__dirname, 'assets', 'icons', 'app_icon.png')
+                    }).show();
+                } else {
+                    new Notification({
+                        title: 'خطأ',
+                        body: 'فشل التحقق من التحديثات: ' + (result.message || 'خطأ غير معروف'),
+                        icon: path.join(__dirname, 'assets', 'icons', 'app_icon.png')
+                    }).show();
+                }
+            }
+        },
+        { type: 'separator' }, // فاصل
+        {
+            label: 'إنهاء Helwan Store',
+            click: () => {
+                appQuitting = true; // تعيين المتغير للإشارة إلى الإغلاق الكامل
+                app.quit(); // إغلاق التطبيق بالكامل
+            }
+        }
+    ]);
+
+    tray.setToolTip('Helwan Store'); // النص الذي يظهر عند تمرير الماوس فوق الأيقونة
+    tray.setContextMenu(contextMenu); // تعيين قائمة السياق
+
+    // معالج النقر المزدوج على أيقونة الـ Tray (لإظهار/إخفاء النافذة)
+    tray.on('double-click', () => {
+        if (mainWindow.isVisible()) {
+            mainWindow.hide();
+        } else {
+            mainWindow.show();
+        }
+    });
 
     // Event handler: Re-create a window if all windows are closed and the app is activated (e.g., clicking dock icon on macOS).
     app.on('activate', () => {
@@ -39,10 +123,22 @@ app.whenReady().then(() => {
     });
 });
 
+// إضافة جديدة: معالج لتعيين appQuitting قبل أن يغلق التطبيق بالكامل
+app.on('before-quit', () => {
+    appQuitting = true;
+});
+
 // Event handler: Called when all windows are closed.
 app.on('window-all-closed', () => {
-    // On macOS, it's common for applications and their menu bar to stay active until the user quits explicitly with Cmd + Q
-    if (process.platform !== 'darwin') app.quit();
+    // على macOS، من الشائع أن تظل التطبيقات وشريط القائمة نشطة حتى ينهي المستخدم صراحة باستخدام Cmd + Q
+    // لا تستدعي app.quit() هنا إلا إذا كان المستخدم يطلب الإنهاء صراحة
+    // إذا كان appQuitting = true، فهذا يعني أن المستخدم طلب الإنهاء من الـ Tray أو Cmd+Q
+    if (process.platform !== 'darwin' && !appQuitting) {
+        // على الأنظمة الأخرى غير macOS، إذا أغلقت جميع النوافذ ولم يتم طلب الإنهاء، فلا تفعل شيئًا
+        // ودع التطبيق يبقى في الـ Tray
+    } else if (process.platform === 'darwin' && appQuitting) {
+         app.quit(); // على macOS، إذا طلب الإنهاء صراحة، فقم بالإنهاء
+    }
 });
 
 /**
@@ -352,7 +448,29 @@ ipcMain.handle('update-system', async (event) => {
     const command = 'pacman -Syu';
     // Use executePrivilegedCommand as this requires sudo.
     // Use a generic package name 'System' for status updates.
-    return executePrivilegedCommand(event, command, 'System Update');
+    const result = await executePrivilegedCommand(event, command, 'System Update'); // تخزين النتيجة
+
+    // *** إضافة جديدة هنا ***
+    if (result.success) {
+        if (Notification.isSupported()) {
+            new Notification({
+                title: 'Helwan Store',
+                body: 'تم تحديث النظام بنجاح!',
+                icon: path.join(__dirname, 'assets', 'icons', 'app_icon.png')
+            }).show();
+        }
+    } else {
+        if (Notification.isSupported()) {
+            new Notification({
+                title: 'Helwan Store - خطأ',
+                body: 'فشل تحديث النظام: ' + (result.message || 'خطأ غير معروف'),
+                icon: path.join(__dirname, 'assets', 'icons', 'app_icon.png')
+            }).show();
+        }
+    }
+    // *** نهاية الإضافة الجديدة ***
+
+    return result; // أعد النتيجة الأصلية
 });
 
 
@@ -368,4 +486,3 @@ ipcMain.handle('send-notification', (event, { title, body, iconPath }) => {
         console.warn('Desktop notifications are not supported on this system.');
     }
 });
-

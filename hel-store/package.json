@@ -1,12 +1,48 @@
 {
   "name": "helwan-store",
   "version": "1.0.0",
-  "description": "Simple package manager UI for Helwan Linux",
+  "description": "Simple graphical package manager for Helwan Linux (Arch-based)",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "keywords": [
+    "Electron",
+    "Arch",
+    "Linux",
+    "Package Manager"
+  ],
+  "author": "ٍSaeed Badrelden",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^29.0.0",
+    "electron-builder": "^24.0.0"
   },
   "dependencies": {
-    "electron": "^27.1.0"
+    // أي تبعيات أخرى لتطبيقك
+  },
+  "build": {
+    "appId": "com.yourcompany.helwanstore",
+    "productName": "Helwan Store",
+    "linux": {
+      "target": ["AppImage"],
+      "category": "Utility",
+      "icon": "assets/icons/app_icon.png",
+      "executableName": "helwan-store"
+    },
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "files": [
+      "**/*",
+      "!node_modules/.",
+      "node_modules/**/*"
+    ],
+    "extraFiles": [
+      // إذا كان لديك أي ملفات إضافية تريد تضمينها
+    ]
   }
 }
