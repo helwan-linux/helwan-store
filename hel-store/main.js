@@ -65,31 +65,31 @@ app.whenReady().then(() => {
     // قائمة السياق لأيقونة الـ Tray
     const contextMenu = Menu.buildFromTemplate([
         {
-            label: 'فتح Helwan Store',
+            label: 'open',
             click: () => {
                 mainWindow.show(); // إظهار النافذة
             }
         },
         {
-            label: 'إخفاء Helwan Store', // خيار لإخفاء النافذة إذا كانت ظاهرة
+            label: 'hide', // خيار لإخفاء النافذة إذا كانت ظاهرة
             click: () => {
                 mainWindow.hide();
             }
         },
         {
-            label: 'التحقق من التحديثات',
+            label: 'check update',
             click: async () => {
                 const result = await ipcMain.handle('check-for-system-updates');
                 if (result.success) {
                     new Notification({
-                        title: 'تحديثات النظام',
-                        body: result.updatesAvailable ? `${result.updateCount} تحديثات متاحة!` : 'نظامك محدث.',
+                        title: 'system update',
+                        body: result.updatesAvailable ? `${result.updateCount} system update!` : 'system updated.',
                         icon: path.join(__dirname, 'assets', 'icons', 'app_icon.png')
                     }).show();
                 } else {
                     new Notification({
-                        title: 'خطأ',
-                        body: 'فشل التحقق من التحديثات: ' + (result.message || 'خطأ غير معروف'),
+                        title: 'Error',
+                        body: 'Failed to check for updates: ' + (result.message || 'Unknown error'),
                         icon: path.join(__dirname, 'assets', 'icons', 'app_icon.png')
                     }).show();
                 }
@@ -97,7 +97,7 @@ app.whenReady().then(() => {
         },
         { type: 'separator' }, // فاصل
         {
-            label: 'إنهاء Helwan Store',
+            label: 'end',
             click: () => {
                 appQuitting = true; // تعيين المتغير للإشارة إلى الإغلاق الكامل
                 app.quit(); // إغلاق التطبيق بالكامل
